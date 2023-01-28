@@ -78,22 +78,24 @@ def audio_video_fx(func, clip, *args, **kwargs):
         return func(clip, *args, **kwargs)
 
 
-def preprocess_args(fun, varnames):
+def preprocess_args(preprocess_func, varnames):
     """Applies fun to variables in varnames before launching the function."""
 
-    def wrapper(func, *args, **kwargs):
-        names = inspect.getfullargspec(func).args
+    def _wrapper(func, *args, **kwargs):
         new_args = [
-            fun(arg) if (name in varnames) and (arg is not None) else arg
-            for (arg, name) in zip(args, names)
+            preprocess_func(arg) if (name in varnames) and (arg is not None) else arg
+            for (arg, name) in zip(args, func.argnames)
         ]
         new_kwargs = {
-            kwarg: fun(value) if kwarg in varnames else value
+            kwarg: preprocess_func(value) if kwarg in varnames else value
             for (kwarg, value) in kwargs.items()
         }
         return func(*new_args, **new_kwargs)
 
-    return decorator.decorator(wrapper)
+    def wrapper(func):
+        func.argnames = inspect.getfullargspec(func).args
+        return decorator.decorate(func, _wrapper)
+    return wrapper
 
 
 def convert_parameter_to_seconds(varnames):
@@ -114,9 +116,8 @@ def add_mask_if_none(func, clip, *args, **kwargs):
     return func(clip, *args, **kwargs)
 
 
-@decorator.decorator
-def use_clip_fps_by_default(func, clip, *args, **kwargs):
-    """Will use ``clip.fps`` if no ``fps=...`` is provided in **kwargs**."""
+def _use_clip_fps_by_default(func, clip, *args, **kwargs):
+    """Inner decorator for use_clip_fps_by_default()"""
 
     def find_fps(fps):
         if fps is not None:
@@ -130,10 +131,8 @@ def use_clip_fps_by_default(func, clip, *args, **kwargs):
             " the clip's fps with `clip.fps=24`" % func.__name__
         )
 
-    names = inspect.getfullargspec(func).args[1:]
-
     new_args = [
-        find_fps(arg) if (name == "fps") else arg for (arg, name) in zip(args, names)
+        find_fps(arg) if (name == "fps") else arg for (arg, name) in zip(args, func.argnames)
     ]
     new_kwargs = {
         kwarg: find_fps(value) if kwarg == "fps" else value
@@ -141,3 +140,9 @@ def use_clip_fps_by_default(func, clip, *args, **kwargs):
     }
 
     return func(clip, *new_args, **new_kwargs)
+
+
+def use_clip_fps_by_default(f):
+    """Will use ``clip.fps`` if no ``fps=...`` is provided in **kwargs**."""
+    f.argnames = inspect.getfullargspec(f).args[1:]
+    return decorator.decorate(f, _use_clip_fps_by_default)
