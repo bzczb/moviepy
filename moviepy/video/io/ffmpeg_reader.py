@@ -247,7 +247,7 @@ class FFMPEG_VideoReader:
         """
         # + 1 so that it represents the frame position that it will be
         # after the frame is read. This makes the later comparisons easier.
-        pos = np.clip(self.get_frame_number(t), 0, self.n_frames - 1)
+        pos = np.clip(self.get_frame_number(t), 0, self.n_frames - 1) + 1
 
         # If in the frame cache, don't need to do anything else.
         cached = get_frame_cache(self, pos - 1)
