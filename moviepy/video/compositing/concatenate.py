@@ -76,7 +76,7 @@ def concatenate_videoclips(
     if method == "chain":
 
         def make_frame(t):
-            i = max([i for i, e in enumerate(timings[:-1]) if e <= t])
+            i = max([i for i, e in enumerate(timings[:-1]) if e <= t], default=0)
             return clips[i].get_frame(t - timings[i])
 
         def get_mask(clip):
