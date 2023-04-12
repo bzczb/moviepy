@@ -30,9 +30,6 @@ class AudioFileClip(AudioClip):
     Attributes
     ----------
 
-    nbytes
-      Number of bits per frame of the original audio file.
-
     fps
       Number of frames per second in the audio file
 
@@ -55,7 +52,7 @@ class AudioFileClip(AudioClip):
 
     @convert_path_to_string("filename")
     def __init__(
-        self, filename, decode_file=False, buffersize=200000, nbytes=2, fps=44100
+        self, filename, decode_file=False, buffersize=200000, fps=44100
     ):
         AudioClip.__init__(self)
 
@@ -64,7 +61,6 @@ class AudioFileClip(AudioClip):
             filename,
             decode_file=decode_file,
             fps=fps,
-            nbytes=nbytes,
             buffersize=buffersize,
         )
         self.fps = fps
