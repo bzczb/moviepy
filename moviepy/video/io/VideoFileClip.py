@@ -92,7 +92,6 @@ class VideoFileClip(VideoClip):
         target_resolution=None,
         resize_algorithm="bicubic",
         audio_fps=44100,
-        audio_nbytes=2,
         fps_source="fps",
         pixel_format=None,
     ):
@@ -144,7 +143,6 @@ class VideoFileClip(VideoClip):
                 filename,
                 buffersize=audio_buffersize,
                 fps=audio_fps,
-                nbytes=audio_nbytes,
             )
 
     def __deepcopy__(self, memo):
