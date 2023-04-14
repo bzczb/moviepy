@@ -172,6 +172,7 @@ class FFMPEG_AudioReader:
             in_time = (tt >= 0) & (tt < self.duration)
 
             # Check that the requested time is in the valid range
+            # TODO raise an error if ALL of the t is out of range, but not if only SOME are?
             if not in_time.any():
                 raise IOError(
                     "Error in file %s, " % (self.filename)
@@ -182,34 +183,9 @@ class FFMPEG_AudioReader:
             # The np.round in the next line is super-important.
             # Removing it results in artifacts in the noise.
             frames = np.round((self.fps * tt)).astype(int)[in_time]
-            fr_min, fr_max = frames.min(), frames.max()
-
-            if not (0 <= (fr_min - self.buffer_startframe) < len(self.buffer)):
-                self.buffer_around(fr_min)
-            elif not (0 <= (fr_max - self.buffer_startframe) < len(self.buffer)):
-                self.buffer_around(fr_max)
-
-            try:
-                result = np.zeros((len(tt), self.nchannels))
-                indices = frames - self.buffer_startframe
-                result[in_time] = self.buffer[indices]
-                return result
-
-            except IndexError as error:
-                warnings.warn(
-                    "Error in file %s, " % (self.filename)
-                    + "At time t=%.02f-%.02f seconds, " % (tt[0], tt[-1])
-                    + "indices wanted: %d-%d, " % (indices.min(), indices.max())
-                    + "but len(buffer)=%d\n" % (len(self.buffer))
-                    + str(error),
-                    UserWarning,
-                )
-
-                # repeat the last frame instead
-                indices[indices >= len(self.buffer)] = len(self.buffer) - 1
-                result[in_time] = self.buffer[indices]
-                return result
-
+            result = np.zeros((len(tt), self.nchannels))
+            result[in_time] = self._split_get_frame(frames, tt)
+            return result
         else:
             ind = int(self.fps * tt)
             if ind < 0 or ind > self.n_frames:  # out of time: return 0
@@ -221,6 +197,68 @@ class FFMPEG_AudioReader:
 
             # read the frame in the buffer
             return self.buffer[ind - self.buffer_startframe]
+
+    def _get_frame_frames(self, frames, tt):
+        fr_min, fr_max = frames.min(), frames.max()
+
+        if not (0 <= (fr_min - self.buffer_startframe) < len(self.buffer)):
+            self.buffer_around(fr_min)
+        elif not (0 <= (fr_max - self.buffer_startframe) < len(self.buffer)):
+            self.buffer_around(fr_max)
+
+        try:
+            indices = frames - self.buffer_startframe
+            return self.buffer[indices]
+
+        except IndexError as error:
+            warnings.warn(
+                "Error in file %s, " % (self.filename)
+                + "At time t=%.02f-%.02f seconds, " % (tt[0], tt[-1])
+                + "indices wanted: %d-%d, " % (indices.min(), indices.max())
+                + "but len(buffer)=%d\n" % (len(self.buffer))
+                + str(error),
+                UserWarning,
+            )
+
+            # repeat the last frame instead
+            indices[indices >= len(self.buffer)] = len(self.buffer) - 1
+            return self.buffer[indices]
+
+    def _split_get_frame(self, frames, tt):
+        fr_min, fr_max = frames.min(), frames.max()
+
+        tt_diff = np.diff(frames)
+        increasing, decreasing = np.all(tt_diff >= 0), np.all(tt_diff <= 0)
+        if not (increasing or decreasing):
+            # TODO some sort of vibrato thing, not handling it right now
+            # shouldn't even be happening at this level
+            return self._get_frame_frames(frames)
+        base = fr_min if increasing else fr_max
+        frames_offset = np.abs(frames - base)
+        frames_views = []
+
+        # Group ranges of frame indexes by how much can fit in the buffer
+        index = 0
+        threshold = self.buffersize // 2
+        while new_index := np.argmax(frames_offset[index:] >= threshold):
+            new_index += index
+            frames_views.append(frames[index:new_index])
+            threshold += self.buffersize // 2
+            index = new_index
+
+        frames_views.append(frames[index:])  # last one, nothing else went over the threshold
+
+        if len(frames_views) == 1:
+            return self._get_frame_frames(frames_views[0], tt)
+
+        if decreasing:
+            # tiny optimization, don't make a new process for each range
+            gotten_frames = [self._get_frame_frames(v, tt) for v in reversed(frames_views)]
+            gotten_frames = list(reversed(gotten_frames))
+        else:
+            gotten_frames = [self._get_frame_frames(v, tt) for v in frames_views]
+
+        return np.vstack(gotten_frames)
 
     def buffer_around(self, frame_number):
         """
