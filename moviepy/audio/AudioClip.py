@@ -288,6 +288,7 @@ class AudioArrayClip(AudioClip):
         self.array = array
         self.fps = fps
         self.duration = 1.0 * len(array) / fps
+        self.end = self.duration
 
         def make_frame(t):
             """Complicated, but must be able to handle the case where t
