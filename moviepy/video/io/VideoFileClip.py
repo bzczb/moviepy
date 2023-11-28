@@ -94,6 +94,7 @@ class VideoFileClip(VideoClip):
         audio_fps=44100,
         fps_source="fps",
         pixel_format=None,
+        access_callback=None
     ):
         VideoClip.__init__(self)
 
@@ -107,6 +108,7 @@ class VideoFileClip(VideoClip):
             target_resolution=target_resolution,
             resize_algo=resize_algorithm,
             fps_source=fps_source,
+            access_callback=access_callback
         )
 
         # Make some of the reader's attributes accessible from the clip
@@ -139,6 +141,7 @@ class VideoFileClip(VideoClip):
                 filename,
                 buffersize=audio_buffersize,
                 fps=audio_fps,
+                access_callback=access_callback
             )
 
     def __deepcopy__(self, memo):

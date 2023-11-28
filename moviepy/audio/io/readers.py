@@ -44,6 +44,7 @@ class FFMPEG_AudioReader:
         print_infos=False,
         fps=44100,
         nchannels=2,
+        access_callback=None
     ):
         # TODO bring FFMPEG_AudioReader more in line with FFMPEG_VideoReader
         # E.g. here self.pos is still 1-indexed.
@@ -64,6 +65,11 @@ class FFMPEG_AudioReader:
         self.buffersize = min(self.n_frames + 1, buffersize)
         self.buffer = None
         self.buffer_startframe = 1
+
+        self.access_callback = access_callback
+        if self.access_callback:
+            self.access_callback(self)
+
         self.initialize()
         self.buffer_around(1)
 
@@ -118,6 +124,8 @@ class FFMPEG_AudioReader:
 
     def skip_chunk(self, chunksize):
         """TODO: add documentation"""
+        if chunksize == 0:
+            return
         _ = self.proc.stdout.read(self.nchannels * chunksize * self.nbytes)
         self.proc.stdout.flush()
         self.pos = self.pos + chunksize
@@ -152,7 +160,9 @@ class FFMPEG_AudioReader:
         arbitrary frames whenever possible, by moving between adjacent
         frames.
         """
-        if (pos < self.pos) or (pos > (self.pos + 1000000)):
+        # TODO Information on precise seek:
+        # https://stackoverflow.com/a/76916381
+        if not self.proc or (pos < self.pos) or (pos > (self.pos + 1000000)):
             t = 1.0 * pos / self.fps
             self.initialize(t)
         elif pos > self.pos:
@@ -163,6 +173,13 @@ class FFMPEG_AudioReader:
 
     def get_frame(self, tt):
         """TODO: add documentation"""
+        if self.access_callback:
+            self.access_callback(self)
+
+        # Initialize proc if it is not open
+        if not self.proc:
+            self.seek(self.buffer_startframe + self.buffersize)
+
         if isinstance(tt, np.ndarray):
             # lazy implementation, but should not cause problems in
             # 99.99 %  of the cases
