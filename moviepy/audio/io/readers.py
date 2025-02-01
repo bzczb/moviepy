@@ -32,10 +32,6 @@ class FFMPEG_AudioReader:
     fps
       Desired frames per second in the decoded signal that will be
       received from ffmpeg
-
-    nbytes
-      Desired number of bytes (1,2,4) in the signal that will be
-      received from ffmpeg
     """
 
     def __init__(
@@ -45,17 +41,16 @@ class FFMPEG_AudioReader:
         decode_file=False,
         print_infos=False,
         fps=44100,
-        nbytes=2,
         nchannels=2,
     ):
         # TODO bring FFMPEG_AudioReader more in line with FFMPEG_VideoReader
         # E.g. here self.pos is still 1-indexed.
         # (or have them inherit from a shared parent class)
         self.filename = filename
-        self.nbytes = nbytes
+        self.nbytes = 4
         self.fps = fps
-        self.format = "s%dle" % (8 * nbytes)
-        self.codec = "pcm_s%dle" % (8 * nbytes)
+        self.format = "f32le"
+        self.codec = "pcm_f32le"
         self.nchannels = nchannels
         infos = ffmpeg_parse_infos(filename, decode_file=decode_file)
         self.duration = infos["duration"]
@@ -153,12 +148,12 @@ class FFMPEG_AudioReader:
         # chunksize is not being autoconverted from float to int
         chunksize = int(round(chunksize))
         s = self.proc.stdout.read(self.nchannels * chunksize * self.nbytes)
-        data_type = {1: "int8", 2: "int16", 4: "int32"}[self.nbytes]
+        data_type = 'float32'
         if hasattr(np, "frombuffer"):
             result = np.frombuffer(s, dtype=data_type)
         else:
             result = np.fromstring(s, dtype=data_type)
-        result = (1.0 * result / 2 ** (8 * self.nbytes - 1)).reshape(
+        result = result.reshape(
             (int(len(result) / self.nchannels), self.nchannels)
         )
 
