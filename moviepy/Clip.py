@@ -188,6 +188,25 @@ class Clip:
             keep_duration=keep_duration,
         )
 
+    def fx(self, func, *args, **kwargs):
+        """Returns the result of ``func(self, *args, **kwargs)``, for instance
+
+        >>> new_clip = clip.fx(resize, 0.2, method="bilinear")
+
+        is equivalent to
+
+        >>> new_clip = resize(clip, 0.2, method="bilinear")
+
+        The motivation of fx is to keep the name of the effect near its
+        parameters when the effects are chained:
+
+        >>> from moviepy.video.fx import multiply_volume, resize, mirrorx
+        >>> clip.fx(multiply_volume, 0.5).fx(resize, 0.3).fx(mirrorx)
+        >>> # Is equivalent, but clearer than
+        >>> mirrorx(resize(multiply_volume(clip, 0.5), 0.3))
+        """
+        return func(self, *args, **kwargs)
+
     def with_effects(self, effects: List["Effect"]):
         """Return a copy of the current clip with the effects applied
 
