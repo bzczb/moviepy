@@ -17,4 +17,4 @@ class TimeMirror(Effect):
         if clip.duration is None:
             raise ValueError("Attribute 'duration' not set")
 
-        return clip[::-1]
+        return clip.time_transform(lambda t: clip.duration - t, keep_duration=True)
