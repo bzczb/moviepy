@@ -1393,11 +1393,11 @@ class ImageClip(VideoClip):
         masks or their audios). The result is still an ImageClip.
         """
         if apply_to is None:
-            apply_to = ["mask", "audio"]
+            apply_to = []
         for attr in apply_to:
             a = getattr(self, attr, None)
             if a is not None:
-                new_a = a.time_transform(time_func)
+                new_a = a.time_transform(time_func, keep_duration=keep_duration)
                 setattr(self, attr, new_a)
 
 
