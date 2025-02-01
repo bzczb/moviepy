@@ -48,6 +48,7 @@ class FFMPEG_VideoReader:
         target_resolution=None,
         resize_algo="bicubic",
         fps_source="fps",
+        access_callback=None,
     ):
         self.filename = filename
         self.proc = None
@@ -91,6 +92,10 @@ class FFMPEG_VideoReader:
         self.depth = 4 if pixel_format[-1] == "a" else 3
         # 'a' represents 'alpha' which means that each pixel has 4 values instead of 3.
         # See https://github.com/Zulko/moviepy/issues/1070#issuecomment-644457274
+
+        self.access_callback = access_callback
+        if self.access_callback:
+            self.access_callback(self)
 
         if bufsize is None:
             w, h = self.size
@@ -267,6 +272,9 @@ class FFMPEG_VideoReader:
         This function tries to avoid fetching arbitrary frames
         whenever possible, by moving between adjacent frames.
         """
+        if self.access_callback:
+            self.access_callback(self)
+
         # + 1 so that it represents the frame position that it will be
         # after the frame is read. This makes the later comparisons easier.
         pos = np.clip(self.get_frame_number(t), 0, self.n_frames - 1) + 1
@@ -278,7 +286,6 @@ class FFMPEG_VideoReader:
 
         # Initialize proc if it is not open
         if not self.proc:
-            print("Proc not detected")
             self.initialize(t)
             return self.last_read
 
