@@ -3,16 +3,35 @@
 import os
 import re
 import subprocess as sp
+import threading
 import warnings
 
 import numpy as np
 
-from moviepy.config import FFMPEG_BINARY  # ffmpeg, ffmpeg.exe, etc...
+from moviepy.config import FFMPEG_BINARY, FFMPEG_CACHE_REVERSE
 from moviepy.tools import (
     convert_to_seconds,
     cross_platform_popen_params,
     ffmpeg_escape_filename,
 )
+
+
+_frame_cache = threading.local()
+
+
+def set_frame_cache(reader_inst: "FFMPEG_VideoReader", offset: int, frames: list):
+    _frame_cache.reader_inst = reader_inst
+    _frame_cache.offset = offset
+    _frame_cache.frames = frames
+
+
+def get_frame_cache(reader_inst: "FFMPEG_VideoReader", offset: int):
+    if getattr(_frame_cache, "reader_inst", None) is not reader_inst:
+        return None
+    if _frame_cache.offset <= offset < _frame_cache.offset + len(_frame_cache.frames):
+        return _frame_cache.frames[offset - _frame_cache.offset]
+    else:
+        return None
 
 
 class FFMPEG_VideoReader:
@@ -92,7 +111,9 @@ class FFMPEG_VideoReader:
         # self.pos represents the (0-indexed) index of the frame that is next in line
         # to be read by self.read_frame().
         # Eg when self.pos is 1, the 2nd frame will be read next.
-        self.pos = self.get_frame_number(start_time)
+        start_pos = self.get_frame_number(start_time)
+        cached_pos = max(0, start_pos - FFMPEG_CACHE_REVERSE)
+        self.pos = cached_pos
 
         # Getting around a difference between ffmpeg and moviepy seeking:
         # "moviepy seek" means "get the frame displayed at time t"
@@ -164,6 +185,13 @@ class FFMPEG_VideoReader:
             }
         )
         self.proc = sp.Popen(cmd, **popen_params)
+
+        if FFMPEG_CACHE_REVERSE:
+            cache_frames = []
+            while self.pos != start_pos:
+                cache_frames.append(self.read_frame())
+            set_frame_cache(self, cached_pos, cache_frames)
+
         self.last_read = self.read_frame()
 
     def skip_frames(self, n=1):
@@ -241,7 +269,12 @@ class FFMPEG_VideoReader:
         """
         # + 1 so that it represents the frame position that it will be
         # after the frame is read. This makes the later comparisons easier.
-        pos = self.get_frame_number(t) + 1
+        pos = np.clip(self.get_frame_number(t), 0, self.n_frames - 1) + 1
+
+        # If in the frame cache, don't need to do anything else.
+        cached = get_frame_cache(self, pos - 1)
+        if cached is not None:
+            return cached
 
         # Initialize proc if it is not open
         if not self.proc:

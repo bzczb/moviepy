@@ -17,6 +17,7 @@ except ImportError:
 
 FFMPEG_BINARY = os.getenv("FFMPEG_BINARY", "ffmpeg-imageio")
 FFPLAY_BINARY = os.getenv("FFPLAY_BINARY", "auto-detect")
+FFMPEG_CACHE_REVERSE = int(os.getenv("FFMPEG_CACHE_REVERSE", "0"))
 
 IS_POSIX_OS = os.name == "posix"
 
