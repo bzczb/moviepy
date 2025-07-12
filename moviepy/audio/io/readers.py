@@ -32,6 +32,9 @@ class FFMPEG_AudioReader:
     fps
       Desired frames per second in the decoded signal that will be
       received from ffmpeg
+
+    audio_stream_index
+      The index of the audio stream to read from the file.
     """
 
     def __init__(
@@ -42,6 +45,7 @@ class FFMPEG_AudioReader:
         print_infos=False,
         fps=44100,
         nchannels=2,
+        audio_stream_index=0,
         access_callback=None,
     ):
         # TODO bring FFMPEG_AudioReader more in line with FFMPEG_VideoReader
@@ -53,11 +57,14 @@ class FFMPEG_AudioReader:
         self.format = "f32le"
         self.codec = "pcm_f32le"
         self.nchannels = nchannels
-        infos = ffmpeg_parse_infos(filename, decode_file=decode_file)
+        infos = ffmpeg_parse_infos(
+            filename, decode_file=decode_file, print_infos=print_infos
+        )
         self.duration = infos["duration"]
         self.bitrate = infos["audio_bitrate"]
         self.infos = infos
         self.proc = None
+        self.audio_stream_index = audio_stream_index
 
         self.n_frames = int(self.fps * self.duration)
         self.buffersize = min(self.n_frames + 1, buffersize)
@@ -80,6 +87,8 @@ class FFMPEG_AudioReader:
                 "%.05f" % (start_time - offset),
                 "-i",
                 ffmpeg_escape_filename(self.filename),
+                "-map",
+                "0:a:%d" % self.audio_stream_index,
                 "-vn",
                 "-ss",
                 "%.05f" % offset,

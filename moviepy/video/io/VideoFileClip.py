@@ -60,6 +60,9 @@ class VideoFileClip(VideoClip):
     is_mask
       `True` if the clip is going to be used as a mask.
 
+    audio_stream_index
+      The index of the audio stream to read from the file.
+
 
     Attributes
     ----------
@@ -98,6 +101,7 @@ class VideoFileClip(VideoClip):
         fps_source="fps",
         pixel_format=None,
         is_mask=False,
+        audio_stream_index=0,
         access_callback=None,
     ):
         VideoClip.__init__(self, is_mask=is_mask)
@@ -146,6 +150,7 @@ class VideoFileClip(VideoClip):
                 filename,
                 buffersize=audio_buffersize,
                 fps=audio_fps,
+                audio_stream_index=audio_stream_index,
                 access_callback=access_callback,
             )
 

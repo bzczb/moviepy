@@ -36,6 +36,9 @@ class AudioFileClip(AudioClip):
     buffersize
       See Parameters.
 
+    audio_stream_index
+      The index of the audio stream to read from the file.
+
     Lifetime
     --------
 
@@ -54,7 +57,13 @@ class AudioFileClip(AudioClip):
 
     @convert_path_to_string("filename")
     def __init__(
-        self, filename, decode_file=False, buffersize=200000, fps=44100, access_callback=None
+        self,
+        filename,
+        decode_file=False,
+        buffersize=200000,
+        fps=44100,
+        audio_stream_index=0,
+        access_callback=None,
     ):
         AudioClip.__init__(self)
 
